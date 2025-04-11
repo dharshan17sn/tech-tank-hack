@@ -1,0 +1,165 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+enum UserRole {
+  FARMER
+  SOIL_TEST_COMPANY
+  SEED_PROVIDER
+  MARKET_AGENT
+  BUYER
+}
+
+model User {
+  id               String    @id @default(uuid())
+  email            String    @unique
+  password         String
+  role             UserRole
+  name             String?
+  farmerCardNumber String?   @unique
+  companyName      String?
+  address          String?
+  contactNumber    String?
+  krishiStars      Int       @default(0)
+  createdAt        DateTime  @default(now())
+  updatedAt        DateTime  @updatedAt
+
+  // Relations
+  cropFeeds        CropFeed[]
+  soilTestRequests SoilTestRequest[]  @relation("FarmerRequests")
+  soilTestReports  SoilTestReport[]   @relation("SoilTesterReports")
+  feedbacks        Feedback[]         @relation("ReceivedFeedbacks")
+  givenFeedbacks   Feedback[]         @relation("GivenFeedbacks")
+  marketPrices     MarketPrice[]
+  biddingEntries   BiddingEntry[]     @relation("FarmerBiddings")
+  placedBids       Bid[]              @relation("BuyerBids")
+}
+
+model CropFeed {
+  id          String    @id @default(uuid())
+  title       String
+  description String
+  imageUrl    String?
+  isAiQuery   Boolean   @default(false)
+  aiResponse  String?
+  wasHelpful  Boolean?
+  createdAt   DateTime  @default(now())
+  updatedAt   DateTime  @updatedAt
+
+  // Relations
+  userId      String
+  user        User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  comments    Comment[]
+}
+
+model Comment {
+  id          String    @id @default(uuid())
+  content     String
+  createdAt   DateTime  @default(now())
+  updatedAt   DateTime  @updatedAt
+
+  // Relations
+  cropFeedId  String
+  cropFeed    CropFeed  @relation(fields: [cropFeedId], references: [id], onDelete: Cascade)
+  userId      String
+}
+
+model SoilTestRequest {
+  id            String    @id @default(uuid())
+  location      String
+  contactNumber String
+  status        String    @default("PENDING") // PENDING, ACCEPTED, COMPLETED
+  createdAt     DateTime  @default(now())
+  updatedAt     DateTime  @updatedAt
+
+  // Relations
+  farmerId      String
+  farmer        User      @relation("FarmerRequests", fields: [farmerId], references: [id], onDelete: Cascade)
+  reports       SoilTestReport[]
+}
+
+model SoilTestReport {
+  id                String    @id @default(uuid())
+  reportUrl         String
+  soilCollectionUrl String
+  farmerPhotoUrl    String
+  createdAt         DateTime  @default(now())
+  updatedAt         DateTime  @updatedAt
+
+  // Relations
+  requestId         String
+  request           SoilTestRequest @relation(fields: [requestId], references: [id], onDelete: Cascade)
+  soilTesterId      String
+  soilTester        User      @relation("SoilTesterReports", fields: [soilTesterId], references: [id])
+}
+
+model Feedback {
+  id          String    @id @default(uuid())
+  rating      Int
+  comment     String?
+  createdAt   DateTime  @default(now())
+  updatedAt   DateTime  @updatedAt
+
+  // Relations
+  userId      String
+  user        User      @relation("ReceivedFeedbacks", fields: [userId], references: [id], onDelete: Cascade)
+  giverId     String
+  giver       User      @relation("GivenFeedbacks", fields: [giverId], references: [id])
+}
+
+model MarketPrice {
+  id          String    @id @default(uuid())
+  cropName    String
+  marketName  String
+  price       Float
+  date        DateTime
+  cropType    String
+  imageUrl    String?
+  createdAt   DateTime  @default(now())
+  updatedAt   DateTime  @updatedAt
+
+  // Relations
+  agentId     String
+  agent       User      @relation(fields: [agentId], references: [id], onDelete: Cascade)
+}
+
+model BiddingEntry {
+  id            String    @id @default(uuid())
+  cropName      String
+  basePrice     Float
+  imageUrl      String
+  contactNumber String
+  address       String
+  isActive      Boolean   @default(true)
+  endDate       DateTime
+  createdAt     DateTime  @default(now())
+  updatedAt     DateTime  @updatedAt
+
+  // Relations
+  farmerId      String
+  farmer        User      @relation("FarmerBiddings", fields: [farmerId], references: [id], onDelete: Cascade)
+  bids          Bid[]     @relation("EntryBids")
+  winningBid    Bid?      @relation("WinningBid", fields: [winningBidId], references: [id])
+  winningBidId  String?   @unique
+}
+
+model Bid {
+  id             String    @id @default(uuid())
+  amount         Float
+  createdAt      DateTime  @default(now())
+  updatedAt      DateTime  @updatedAt
+
+  // Relations
+  biddingEntryId String
+  biddingEntry   BiddingEntry @relation("EntryBids", fields: [biddingEntryId], references: [id], onDelete: Cascade)
+
+  buyerId        String
+  buyer          User         @relation("BuyerBids", fields: [buyerId], references: [id])
+
+  winnerOf       BiddingEntry? @relation("WinningBid")
+}

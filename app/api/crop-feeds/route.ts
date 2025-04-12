@@ -2,12 +2,15 @@ import { type NextRequest, NextResponse } from "next/server"
 import prisma from "@/lib/prisma"
 import { getSession } from "@/lib/auth"
 import { z } from "zod"
+import { v4 as uuidv4 } from "uuid"
+import { writeFile } from "fs/promises"
+import path from "path"
 
 const cropFeedSchema = z.object({
   title: z.string().min(5),
   description: z.string().min(10),
   isAiQuery: z.boolean().default(false),
-  imageUrl: z.string().nullable().optional(),
+  imageFile: z.any().optional(),
 })
 
 export async function POST(req: NextRequest) {
@@ -18,15 +21,37 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 })
     }
 
-    const body = await req.json()
+    const formData = await req.formData()
+    
+    // Extract form fields
+    const title = formData.get('title') as string
+    const description = formData.get('description') as string
+    const isAiQuery = formData.get('isAiQuery') === 'true'
+    const imageFile = formData.get('imageFile') as File | null
 
-    // Validate request body
-    const validation = cropFeedSchema.safeParse(body)
-    if (!validation.success) {
-      return NextResponse.json({ error: "Invalid input data", details: validation.error.format() }, { status: 400 })
+    // Validate required fields
+    if (!title || !description) {
+      return NextResponse.json({ error: "Title and description are required" }, { status: 400 })
     }
 
-    const { title, description, isAiQuery, imageUrl } = validation.data
+    let imageUrl = null
+
+    // Handle image upload if present
+    if (imageFile) {
+      const fileExtension = imageFile.name.split('.').pop()
+      const uniqueFileName = `${uuidv4()}.${fileExtension}`
+      const uploadDir = path.join(process.cwd(), 'public', 'uploads', 'crop-feeds')
+      const filePath = path.join(uploadDir, uniqueFileName)
+
+      // Convert File to Buffer
+      const buffer = Buffer.from(await imageFile.arrayBuffer())
+
+      // Save file to disk
+      await writeFile(filePath, buffer)
+
+      // Generate public URL
+      imageUrl = `/uploads/crop-feeds/${uniqueFileName}`
+    }
 
     // Generate AI response if requested
     let aiResponse = null

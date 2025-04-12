@@ -3,11 +3,14 @@ import prisma from "@/lib/prisma"
 import { getSession } from "@/lib/auth"
 import { UserRole } from "@prisma/client"
 import { z } from "zod"
+import { writeFile } from "fs/promises"
+import { join } from "path"
+import { mkdir } from "fs/promises"
 
 const reportSchema = z.object({
-  reportUrl: z.string().url(),
-  soilCollectionUrl: z.string().url(),
-  farmerPhotoUrl: z.string().url(),
+  reportFile: z.any(),
+  soilCollectionFile: z.any(),
+  farmerPhotoFile: z.any(),
 })
 
 export async function POST(req: NextRequest, { params }: { params: { id: string } }) {
@@ -45,22 +48,41 @@ export async function POST(req: NextRequest, { params }: { params: { id: string 
       )
     }
 
-    const body = await req.json()
+    const formData = await req.formData()
+    const reportFile = formData.get("reportFile") as File
+    const soilCollectionFile = formData.get("soilCollectionFile") as File
+    const farmerPhotoFile = formData.get("farmerPhotoFile") as File
 
-    // Validate request body
-    const validation = reportSchema.safeParse(body)
-    if (!validation.success) {
-      return NextResponse.json({ error: "Invalid input data", details: validation.error.format() }, { status: 400 })
+    if (!reportFile || !soilCollectionFile || !farmerPhotoFile) {
+      return NextResponse.json({ error: "All files are required" }, { status: 400 })
     }
 
-    const { reportUrl, soilCollectionUrl, farmerPhotoUrl } = validation.data
+    // Create uploads directory if it doesn't exist
+    const uploadsDir = join(process.cwd(), "public", "uploads")
+    await mkdir(uploadsDir, { recursive: true })
+
+    // Generate unique filenames
+    const reportFileName = `${requestId}-report-${Date.now()}.${reportFile.name.split(".").pop()}`
+    const soilCollectionFileName = `${requestId}-soil-${Date.now()}.${soilCollectionFile.name.split(".").pop()}`
+    const farmerPhotoFileName = `${requestId}-farmer-${Date.now()}.${farmerPhotoFile.name.split(".").pop()}`
+
+    // Save files to server
+    const reportBuffer = Buffer.from(await reportFile.arrayBuffer())
+    const soilCollectionBuffer = Buffer.from(await soilCollectionFile.arrayBuffer())
+    const farmerPhotoBuffer = Buffer.from(await farmerPhotoFile.arrayBuffer())
+
+    await Promise.all([
+      writeFile(join(uploadsDir, reportFileName), reportBuffer),
+      writeFile(join(uploadsDir, soilCollectionFileName), soilCollectionBuffer),
+      writeFile(join(uploadsDir, farmerPhotoFileName), farmerPhotoBuffer),
+    ])
 
     // Create soil test report
     const report = await prisma.soilTestReport.create({
       data: {
-        reportUrl,
-        soilCollectionUrl,
-        farmerPhotoUrl,
+        reportUrl: `/uploads/${reportFileName}`,
+        soilCollectionUrl: `/uploads/${soilCollectionFileName}`,
+        farmerPhotoUrl: `/uploads/${farmerPhotoFileName}`,
         requestId,
         soilTesterId: session.id,
       },

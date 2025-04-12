@@ -39,56 +39,20 @@ export default function CropMonitoringPage() {
     setError(null)
 
     try {
-      // Upload image
-      setIsUploading(true)
+      // Create FormData
+      const formData = new FormData()
+      formData.append('title', values.title)
+      formData.append('description', values.description)
+      formData.append('isAiQuery', 'true') // Always true for crop monitoring
+
+      // Add image file
       const cropImageFile = values.cropImage[0]
+      formData.append('imageFile', cropImageFile)
 
-      // Get a pre-signed URL from the server
-      const presignedRes = await fetch("/api/upload/presigned", {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-        },
-        body: JSON.stringify({
-          fileName: cropImageFile.name,
-          contentType: cropImageFile.type,
-          folder: "crop-monitoring",
-        }),
-      })
-
-      if (!presignedRes.ok) {
-        throw new Error("Failed to get upload URL")
-      }
-
-      const { uploadUrl, publicUrl } = await presignedRes.json()
-
-      // Upload the file directly to S3
-      const uploadRes = await fetch(uploadUrl, {
-        method: "PUT",
-        body: cropImageFile,
-        headers: {
-          "Content-Type": cropImageFile.type,
-        },
-      })
-
-      if (!uploadRes.ok) {
-        throw new Error("Failed to upload image")
-      }
-
-      setIsUploading(false)
-
-      // Create the crop feed with AI query flag
+      // Create the crop feed
       const response = await fetch("/api/crop-feeds", {
         method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-        },
-        body: JSON.stringify({
-          title: values.title,
-          description: values.description,
-          imageUrl: publicUrl,
-          isAiQuery: true,
-        }),
+        body: formData,
       })
 
       const data = await response.json()

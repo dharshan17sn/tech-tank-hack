@@ -62,36 +62,14 @@ export default function UploadSoilReportPage({
     setError(null)
 
     try {
-      // Upload each file and get URLs
-      const reportFile = values.reportFile[0]
-      const soilCollectionFile = values.soilCollectionFile[0]
-      const farmerPhotoFile = values.farmerPhotoFile[0]
+      const formData = new FormData()
+      formData.append("reportFile", values.reportFile[0])
+      formData.append("soilCollectionFile", values.soilCollectionFile[0])
+      formData.append("farmerPhotoFile", values.farmerPhotoFile[0])
 
-      // Get presigned URLs for each file
-      const [reportUrlData, soilCollectionUrlData, farmerPhotoUrlData] = await Promise.all([
-        getPresignedUrl(reportFile, "soil-reports"),
-        getPresignedUrl(soilCollectionFile, "soil-collection-photos"),
-        getPresignedUrl(farmerPhotoFile, "farmer-photos"),
-      ])
-
-      // Upload files to S3
-      await Promise.all([
-        uploadFileToS3(reportFile, reportUrlData.uploadUrl),
-        uploadFileToS3(soilCollectionFile, soilCollectionUrlData.uploadUrl),
-        uploadFileToS3(farmerPhotoFile, farmerPhotoUrlData.uploadUrl),
-      ])
-
-      // Submit report data to API
       const response = await fetch(`/api/soil-testing/${params.id}/report`, {
         method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-        },
-        body: JSON.stringify({
-          reportUrl: reportUrlData.publicUrl,
-          soilCollectionUrl: soilCollectionUrlData.publicUrl,
-          farmerPhotoUrl: farmerPhotoUrlData.publicUrl,
-        }),
+        body: formData,
       })
 
       const data = await response.json()
@@ -106,42 +84,6 @@ export default function UploadSoilReportPage({
       setError(err instanceof Error ? err.message : "Failed to submit soil test report")
       setIsLoading(false)
     }
-  }
-
-  async function getPresignedUrl(file: File, folder: string) {
-    const presignedRes = await fetch("/api/upload/presigned", {
-      method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-      },
-      body: JSON.stringify({
-        fileName: file.name,
-        contentType: file.type,
-        folder,
-      }),
-    })
-
-    if (!presignedRes.ok) {
-      throw new Error("Failed to get upload URL")
-    }
-
-    return presignedRes.json()
-  }
-
-  async function uploadFileToS3(file: File, uploadUrl: string) {
-    const uploadRes = await fetch(uploadUrl, {
-      method: "PUT",
-      body: file,
-      headers: {
-        "Content-Type": file.type,
-      },
-    })
-
-    if (!uploadRes.ok) {
-      throw new Error(`Failed to upload ${file.name}`)
-    }
-
-    return true
   }
 
   if (isLoadingDetails) {

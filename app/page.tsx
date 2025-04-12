@@ -9,12 +9,12 @@ export default function Home() {
           <h1 className="text-2xl font-bold">KrishiSaarthi</h1>
           <div className="space-x-2">
             <Link href="/login">
-              <Button variant="outline" className="text-white border-white hover:bg-green-700">
+              <Button variant="outline" className="text-black  hover:bg-green-700">
                 Login
               </Button>
             </Link>
             <Link href="/register">
-              <Button variant="outline" className="text-white border-white hover:bg-green-700">
+              <Button variant="outline" className="text-black hover:bg-green-700">
                 Register
               </Button>
             </Link>

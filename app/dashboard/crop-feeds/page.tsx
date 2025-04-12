@@ -75,7 +75,7 @@ export default async function CropFeedsPage() {
                         <AvatarFallback>{getInitials(feed.user)}</AvatarFallback>
                       </Avatar>
                       <div>
-                        <CardTitle className="text-lg">{feed.title}</CardTitle>
+                        <CardTitle className="text-xl">{feed.title}</CardTitle>
                         <div className="flex items-center mt-1">
                           <span className="text-sm text-gray-500">
                             {feed.user.name || feed.user.companyName || feed.user.email}
@@ -95,36 +95,24 @@ export default async function CropFeedsPage() {
                   </div>
                 </CardHeader>
                 <CardContent>
-                  <p className="text-gray-700">{feed.description}</p>
+                  <p className="text-gray-700 mb-4">{feed.description}</p>
                   {feed.imageUrl && (
-                    <div className="mt-4">
+                    <div className="mb-4">
                       <img
-                        src={feed.imageUrl || "/placeholder.svg"}
+                        src={feed.imageUrl}
                         alt={feed.title}
-                        className="rounded-md max-h-64 object-cover"
+                        className="rounded-md w-full h-[300px] object-contain"
                       />
                     </div>
                   )}
-                  {feed.isAiQuery && feed.aiResponse && (
-                    <div className="mt-4 p-4 bg-blue-50 rounded-md">
-                      <h4 className="font-medium text-blue-800 mb-2">AI Suggestion:</h4>
-                      <p className="text-gray-700">{feed.aiResponse}</p>
-                      {feed.wasHelpful !== null && (
-                        <div className="mt-2 flex items-center">
-                          <Badge variant={feed.wasHelpful ? "default" : "destructive"} className="text-xs">
-                            {feed.wasHelpful ? "Helpful" : "Not Helpful"}
-                          </Badge>
-                        </div>
-                      )}
-                    </div>
-                  )}
+                  <div className="flex items-center text-sm text-gray-500">
+                    <MessageSquare className="h-4 w-4 mr-1" />
+                    <span>{feed._count.comments} comments</span>
+                  </div>
                 </CardContent>
-                <CardFooter className="border-t pt-4 flex justify-between">
-                  <Link href={`/dashboard/crop-feeds/${feed.id}`} className="w-full">
-                    <Button variant="outline" className="w-full">
-                      <MessageSquare className="h-4 w-4 mr-2" />
-                      {feed._count.comments} {feed._count.comments === 1 ? "Comment" : "Comments"}
-                    </Button>
+                <CardFooter>
+                  <Link href={`/dashboard/crop-feeds/${feed.id}`}>
+                    <Button variant="outline">View Details</Button>
                   </Link>
                 </CardFooter>
               </Card>

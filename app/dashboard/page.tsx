@@ -21,9 +21,13 @@ export default async function DashboardPage() {
   if (!user) {
     redirect("/login")
   }
-
   // Fetch counts based on user role
-  let stats = []
+  let stats: {
+    title: string;
+    value: number;
+    icon: React.ReactNode;
+    color: string;
+  }[] = []
 
   if (user.role === UserRole.FARMER) {
     const [cropFeedsCount, soilTestRequestsCount, biddingEntriesCount] = await Promise.all([
@@ -88,13 +92,10 @@ export default async function DashboardPage() {
       prisma.bid.count({ where: { buyerId: user.id } }),
       prisma.biddingEntry.count({
         where: {
-          bids: {
-            some: {
-              buyerId: user.id,
-              id: { equals: prisma.biddingEntry.fields.winningBidId },
-            },
-          },
-        },
+          winningBid: {
+            buyerId: user.id
+          }
+        }
       }),
     ])
 

@@ -1,6 +1,6 @@
 "use client"
 
-import { useState } from "react"
+import { useState, useEffect } from "react"
 import { useRouter } from "next/navigation"
 import Link from "next/link"
 import { z } from "zod"
@@ -22,9 +22,9 @@ const formSchema = z.object({
   role: z.enum(["FARMER", "SOIL_TEST_COMPANY", "SEED_PROVIDER", "MARKET_AGENT", "BUYER"]),
   name: z.string().min(2, { message: "Name must be at least 2 characters" }).optional(),
   farmerCardNumber: z.string().optional(),
-  companyName: z.string().optional(),
-  address: z.string().optional(),
-  contactNumber: z.string().optional(),
+  companyName: z.string().min(2, { message: "Company name must be at least 2 characters" }).optional(),
+  address: z.string().min(5, { message: "Address must be at least 5 characters" }).optional(),
+  contactNumber: z.string().min(10, { message: "Contact number must be at least 10 digits" }).optional(),
 })
 
 export default function RegisterPage() {
@@ -32,6 +32,8 @@ export default function RegisterPage() {
   const [isLoading, setIsLoading] = useState(false)
   const [error, setError] = useState<string | null>(null)
   const [selectedRole, setSelectedRole] = useState<UserRole | null>(null)
+
+  console.log("Component rendered")
 
   const form = useForm<z.infer<typeof formSchema>>({
     resolver: zodResolver(formSchema),
@@ -46,28 +48,76 @@ export default function RegisterPage() {
     },
   })
 
+  console.log("Form initialized:", form.formState)
+
+  // Update form validation based on role
+  useEffect(() => {
+    const role = form.watch("role")
+    if (role === "FARMER") {
+      form.setValue("name", "")
+      form.setValue("companyName", undefined)
+      form.setValue("address", undefined)
+      form.setValue("contactNumber", undefined)
+    } else if (["SOIL_TEST_COMPANY", "SEED_PROVIDER", "MARKET_AGENT"].includes(role || "")) {
+      form.setValue("name", undefined)
+      form.setValue("companyName", "")
+      form.setValue("address", "")
+      form.setValue("contactNumber", "")
+      form.setValue("farmerCardNumber", undefined)
+    } else if (role === "BUYER") {
+      form.setValue("name", "")
+      form.setValue("companyName", undefined)
+      form.setValue("address", undefined)
+      form.setValue("contactNumber", "")
+      form.setValue("farmerCardNumber", undefined)
+    }
+  }, [form.watch("role")])
+
   async function onSubmit(values: z.infer<typeof formSchema>) {
+    console.log("onSubmit function called")
+    console.log("Form values:", values)
+    console.log("Selected role:", values.role)
+    
     setIsLoading(true)
     setError(null)
 
     try {
+      console.log("Sending registration request to API...")
       const response = await fetch("/api/auth/register", {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
         },
-        body: JSON.stringify(values),
+        body: JSON.stringify({
+          ...values,
+          // Ensure optional fields are properly handled
+          name: values.name || undefined,
+          farmerCardNumber: values.farmerCardNumber || undefined,
+          companyName: values.companyName || undefined,
+          address: values.address || undefined,
+          contactNumber: values.contactNumber || undefined,
+        }),
       })
 
+      console.log("API Response status:", response.status)
       const data = await response.json()
+      console.log("API Response data:", data)
 
       if (!response.ok) {
+        console.error("Registration failed:", data.error)
+        if (data.details) {
+          console.error("Validation details:", data.details)
+        }
         throw new Error(data.error || "Registration failed")
       }
 
+      console.log("Registration successful, redirecting to login...")
       router.push("/login?registered=true")
     } catch (err) {
-      setError(err instanceof Error ? err.message : "Registration failed")
+      console.error("Registration error:", err)
+      const errorMessage = err instanceof Error ? err.message : "Registration failed"
+      setError(errorMessage)
+      alert(`Registration failed: ${errorMessage}`)
     } finally {
       setIsLoading(false)
     }
@@ -88,7 +138,14 @@ export default function RegisterPage() {
           )}
 
           <Form {...form}>
-            <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-4">
+            <form 
+              onSubmit={(e) => {
+                console.log("Form submit event triggered")
+                e.preventDefault()
+                form.handleSubmit(onSubmit)(e)
+              }} 
+              className="space-y-4"
+            >
               <FormField
                 control={form.control}
                 name="email"
@@ -96,7 +153,14 @@ export default function RegisterPage() {
                   <FormItem>
                     <FormLabel>Email</FormLabel>
                     <FormControl>
-                      <Input placeholder="email@example.com" {...field} />
+                      <Input 
+                        placeholder="email@example.com" 
+                        {...field} 
+                        onChange={(e) => {
+                          field.onChange(e)
+                          console.log("Email value:", e.target.value)
+                        }}
+                      />
                     </FormControl>
                     <FormMessage />
                   </FormItem>
@@ -110,7 +174,15 @@ export default function RegisterPage() {
                   <FormItem>
                     <FormLabel>Password</FormLabel>
                     <FormControl>
-                      <Input type="password" placeholder="********" {...field} />
+                      <Input 
+                        type="password" 
+                        placeholder="********" 
+                        {...field}
+                        onChange={(e) => {
+                          field.onChange(e)
+                          console.log("Password length:", e.target.value.length)
+                        }}
+                      />
                     </FormControl>
                     <FormMessage />
                   </FormItem>
@@ -127,6 +199,7 @@ export default function RegisterPage() {
                       onValueChange={(value) => {
                         field.onChange(value)
                         setSelectedRole(value as UserRole)
+                        console.log("Selected role:", value)
                       }}
                     >
                       <FormControl>
@@ -176,20 +249,6 @@ export default function RegisterPage() {
                       </FormItem>
                     )}
                   />
-
-                  <FormField
-                    control={form.control}
-                    name="contactNumber"
-                    render={({ field }) => (
-                      <FormItem>
-                        <FormLabel>Contact Number</FormLabel>
-                        <FormControl>
-                          <Input placeholder="+1234567890" {...field} />
-                        </FormControl>
-                        <FormMessage />
-                      </FormItem>
-                    )}
-                  />
                 </>
               )}
 
@@ -204,7 +263,14 @@ export default function RegisterPage() {
                       <FormItem>
                         <FormLabel>Company Name</FormLabel>
                         <FormControl>
-                          <Input placeholder="Acme Inc." {...field} />
+                          <Input 
+                            placeholder="Enter your company name" 
+                            {...field}
+                            onChange={(e) => {
+                              field.onChange(e)
+                              console.log("Company name:", e.target.value)
+                            }}
+                          />
                         </FormControl>
                         <FormMessage />
                       </FormItem>
@@ -218,7 +284,14 @@ export default function RegisterPage() {
                       <FormItem>
                         <FormLabel>Address</FormLabel>
                         <FormControl>
-                          <Input placeholder="123 Main St, City" {...field} />
+                          <Input 
+                            placeholder="Enter your company address" 
+                            {...field}
+                            onChange={(e) => {
+                              field.onChange(e)
+                              console.log("Address:", e.target.value)
+                            }}
+                          />
                         </FormControl>
                         <FormMessage />
                       </FormItem>
@@ -232,7 +305,14 @@ export default function RegisterPage() {
                       <FormItem>
                         <FormLabel>Contact Number</FormLabel>
                         <FormControl>
-                          <Input placeholder="+1234567890" {...field} />
+                          <Input 
+                            placeholder="Enter your contact number" 
+                            {...field}
+                            onChange={(e) => {
+                              field.onChange(e)
+                              console.log("Contact number:", e.target.value)
+                            }}
+                          />
                         </FormControl>
                         <FormMessage />
                       </FormItem>
@@ -264,7 +344,7 @@ export default function RegisterPage() {
                       <FormItem>
                         <FormLabel>Contact Number</FormLabel>
                         <FormControl>
-                          <Input placeholder="+1234567890" {...field} />
+                          <Input placeholder="Enter your contact number" {...field} />
                         </FormControl>
                         <FormMessage />
                       </FormItem>
@@ -273,7 +353,17 @@ export default function RegisterPage() {
                 </>
               )}
 
-              <Button type="submit" className="w-full bg-green-600 hover:bg-green-700" disabled={isLoading}>
+              <Button 
+                type="submit" 
+                className="w-full bg-green-600 hover:bg-green-700" 
+                disabled={isLoading}
+                onClick={() => {
+                  console.log("Register button clicked")
+                  if (!form.formState.isValid) {
+                    console.log("Form is not valid:", form.formState.errors)
+                  }
+                }}
+              >
                 {isLoading ? (
                   <>
                     <Loader2 className="mr-2 h-4 w-4 animate-spin" />

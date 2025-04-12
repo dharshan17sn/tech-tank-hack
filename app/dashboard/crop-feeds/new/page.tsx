@@ -30,8 +30,6 @@ export default function NewCropFeedPage() {
   const [isLoading, setIsLoading] = useState(false)
   const [error, setError] = useState<string | null>(null)
   const [selectedFile, setSelectedFile] = useState<File | null>(null)
-  const [uploadProgress, setUploadProgress] = useState(0)
-  const [isUploading, setIsUploading] = useState(false)
 
   const form = useForm<z.infer<typeof formSchema>>({
     resolver: zodResolver(formSchema),
@@ -57,68 +55,24 @@ export default function NewCropFeedPage() {
     setError(null)
 
     try {
-      let imageUrl = null
+      // Create FormData
+      const formData = new FormData()
+      formData.append('title', values.title)
+      formData.append('description', values.description)
+      formData.append('isAiQuery', (values.isAiQuery ?? false).toString())
 
-      // If image upload is enabled and a file is selected
+      // Add image file if selected
       if (values.uploadImage && selectedFile) {
-        setIsUploading(true)
-
-       console.log("uplading the photo");
-       
-        const presignedRes = await fetch("/api/upload/presigned", {
-          method: "POST",
-          headers: {
-            "Content-Type": "application/json",
-          },
-          body: JSON.stringify({
-            fileName: selectedFile.name,
-            contentType: selectedFile.type,
-            folder: "crop-feeds",
-          }),
-        })
-
-        if (!presignedRes.ok) {
-          throw new Error("Failed to get upload URL")
-        }
-
-        const { uploadUrl, publicUrl } = await presignedRes.json()
-
-        // Upload the file directly to S3
-        const uploadRes = await fetch(uploadUrl, {
-          method: "PUT",
-          body: selectedFile,
-          headers: {
-            "Content-Type": selectedFile.type,
-          },
-        })
-
-        console.log(uploadRes);
-        
-
-        if (!uploadRes.ok) {
-          throw new Error("Failed to upload image")
-        }
-
-        imageUrl = publicUrl
-        setIsUploading(false)
+        formData.append('imageFile', selectedFile)
       }
 
       // Create the crop feed
       const response = await fetch("/api/crop-feeds", {
         method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-        },
-        body: JSON.stringify({
-          ...values,
-          imageUrl,
-        }),
+        body: formData,
       })
 
       const data = await response.json()
-
-      console.log(data);
-      
 
       if (!response.ok) {
         throw new Error(data.error || "Failed to create crop feed")
@@ -128,6 +82,7 @@ export default function NewCropFeedPage() {
       router.refresh()
     } catch (err) {
       setError(err instanceof Error ? err.message : "Failed to create crop feed")
+    } finally {
       setIsLoading(false)
     }
   }
@@ -230,12 +185,12 @@ export default function NewCropFeedPage() {
                 <Button
                   type="submit"
                   className="w-full bg-green-600 hover:bg-green-700"
-                  disabled={isLoading || isUploading}
+                  disabled={isLoading}
                 >
-                  {isLoading || isUploading ? (
+                  {isLoading ? (
                     <>
                       <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                      {isUploading ? "Uploading image..." : "Creating post..."}
+                      Creating post...
                     </>
                   ) : (
                     "Create Post"

@@ -143,9 +143,9 @@ export default async function CropFeedDetailPage({
             {cropFeed.imageUrl && (
               <div className="mt-4">
                 <img
-                  src={cropFeed.imageUrl || "/placeholder.svg"}
+                  src={cropFeed.imageUrl}
                   alt={cropFeed.title}
-                  className="rounded-md max-h-96 object-contain"
+                  className="rounded-md w-full max-h-[500px] object-contain"
                 />
               </div>
             )}

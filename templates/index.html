@@ -1,0 +1,33 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <title>Plant Disease Detector 🌿</title>
+</head>
+
+<body style="font-family:sans-serif;text-align:center;padding:2rem">
+    <h1>🌱 Plant Disease Prediction</h1>
+
+    <form method="POST" enctype="multipart/form-data">
+        <input type="file" name="file" accept="image/*" required>
+        <button type="submit" style="margin-left: 1rem;">Predict</button>
+    </form>
+
+    {% if file %}
+    <h2>🖼️ Uploaded Image:</h2>
+    <img src="{{ url_for('static', filename='uploads/' + file) }}"
+        style="width:200px; border: 1px solid #ccc; padding: 5px;"><br><br>
+
+    <div
+        style="display:inline-block; text-align:left; background:#f8f8f8; padding:1rem 2rem; border-radius:10px; box-shadow:0 2px 8px rgba(0,0,0,0.1);">
+        <h3>🔍 Prediction Result:</h3>
+        <p><strong>🌾 Crop:</strong> {{ crop }}</p>
+        <p><strong>🦠 Disease:</strong> {{ disease }}</p>
+        <p><strong>📊 Confidence:</strong> {{ '%.2f' | format(confidence * 100) }}%</p>
+    </div>
+    {% endif %}
+</body>
+
+
+</html>
